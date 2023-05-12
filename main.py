@@ -8,8 +8,25 @@ import numpy as np
 import tkinter as tk
 from playsound import playsound
 import _thread
+import configparser
+import argparse
 
 print("starting...")
+
+parser = argparse.ArgumentParser(description='Load configuration from file')
+parser.add_argument('-c', '--config', metavar='FILE', help='Path to config file', default='config/default.ini')
+# 解析命令行参数
+args = parser.parse_args()
+
+config = configparser.ConfigParser()
+try:
+    config.read(args.config)
+except FileNotFoundError:
+    print('Config file not found, use default config.')
+
+print(args)
+
+
 
 def playSoundAsync():
     isPlaying = {}
@@ -42,17 +59,17 @@ def lowHead():
 print("open camera... if failed, close this, and try again.")
 
 # 显示摄像头采集画面
-showGUI = True
+showGUI = config.getboolean('DEFAULT', 'showGUI', fallback=True)
 # 距离检测参数：脸部宽度占比
-distanceThreshold = 0.2
+distanceThreshold = config.getfloat('DEFAULT', 'distanceThreshold', fallback=0.2)
 # 脑袋俯仰角度检测参数：脸型上部和下部的宽度比
-headThreshold = 1.1
+headThreshold = config.getfloat('DEFAULT', 'headThreshold', fallback=1.1)
 # 当不展示画面时，多久检测一次
-interval = 3
-# 文字大小
-textScale = 0.8
+interval =  config.getfloat('DEFAULT', 'interval', fallback=3)
+# 视频画面上文字大小
+textScale = config.getfloat('DEFAULT', 'textScale', fallback=0.8)
 
-print(f"distance threshold: {distanceThreshold}\nhead angle threshold: {headThreshold}")
+print(f"distance threshold: {distanceThreshold}\nhead threshold: {headThreshold}")
 
 cap = cv2.VideoCapture(0)
 detector = dlib.get_frontal_face_detector()
@@ -121,7 +138,7 @@ while True:
 
     # 以当前状态设置阈值
     # 角度
-    if cv2.waitKey(2) & 0xFF == ord('a'):
+    if cv2.waitKey(1) & 0xFF == ord('a'):
         headThreshold = faceAngle
         print(f"head angle threshold: {headThreshold}")
     # 距离
@@ -130,13 +147,13 @@ while True:
         print(f"distance threshold: {distanceThreshold}")
 
     # 隐藏窗口
-    if cv2.waitKey(2) & 0xFF == ord('h'):
+    if cv2.waitKey(3) & 0xFF == ord('h'):
         showGUI = False
         cv2.destroyAllWindows()
         print(f"dectect frequence: {interval}s")
 
     # 直接退出
-    if cv2.waitKey(2) & 0xFF == ord('q'):
+    if cv2.waitKey(4) & 0xFF == ord('q'):
         break
 
 cap.release()
