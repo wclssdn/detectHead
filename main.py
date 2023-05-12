@@ -39,7 +39,7 @@ def tooClose():
 def lowHead():
     playSound("res/2.mp3")
 
-print("open camera...")
+print("open camera... if failed, close this, and try again.")
 
 # 显示摄像头采集画面
 showGUI = True
@@ -47,6 +47,10 @@ showGUI = True
 distanceThreshold = 0.2
 # 脑袋俯仰角度检测参数：脸型上部和下部的宽度比
 headThreshold = 1.1
+# 当不展示画面时，多久检测一次
+interval = 3
+# 文字大小
+textScale = 0.8
 
 print(f"distance threshold: {distanceThreshold}\nhead angle threshold: {headThreshold}")
 
@@ -59,6 +63,9 @@ print("detecting...")
 print("Press Ctrl + C to quit")
 
 while True:
+    if not showGUI:
+        time.sleep(interval)
+
     ret, frame = cap.read()
     if not ret:
         continue
@@ -99,8 +106,17 @@ while True:
             # BGR格式
             colorGreen = (0, 255, 0)
             colorRed = (0, 0, 255)
-            cv2.putText(frame, f"angle: {faceAngle:.3f} / {headThreshold:.3f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, colorGreen if faceAngle < headThreshold else colorRed, 1)
-            cv2.putText(frame, f"distanceq: {faceWidthPercent:.3f} / {distanceThreshold:.3f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, colorGreen if faceWidthPercent < distanceThreshold else colorRed, 1)
+            colorBlue = (255, 0, 255)
+            cv2.putText(frame, f"Angle current:{faceAngle:.3f} / threshold:{headThreshold:.3f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, textScale, colorGreen if faceAngle < headThreshold else colorRed, 1)
+            cv2.putText(frame, f"Distance current:{faceWidthPercent:.3f} / threshold:{distanceThreshold:.3f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, textScale, colorGreen if faceWidthPercent < distanceThreshold else colorRed, 1)
+
+            # 显示帮助
+            cv2.putText(frame, f"Press A: set angle threshold to current value", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, textScale, colorBlue, 1)
+            cv2.putText(frame, f"Press D: set distance threshold to current value", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, textScale, colorBlue, 1)
+            cv2.putText(frame, f"Press H: hide this window(work in the background)", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, textScale, colorBlue, 1)
+            cv2.putText(frame, f"You may need to quick press a few more times to take effect.", (10, 180), cv2.FONT_HERSHEY_SIMPLEX, textScale, colorBlue, 1)
+ 
+
             cv2.imshow('frame', frame)
 
     # 以当前状态设置阈值
@@ -117,6 +133,8 @@ while True:
     if cv2.waitKey(2) & 0xFF == ord('h'):
         showGUI = False
         cv2.destroyAllWindows()
+        print(f"dectect frequence: {interval}s")
+
     # 直接退出
     if cv2.waitKey(2) & 0xFF == ord('q'):
         break
