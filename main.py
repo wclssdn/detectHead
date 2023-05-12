@@ -24,8 +24,31 @@ try:
 except FileNotFoundError:
     print('Config file not found, use default config.')
 
-print(args)
+# 显示摄像头采集画面
+showGUI = config.getboolean('DEFAULT', 'showGUI', fallback=True)
+# 距离检测参数：脸部宽度占比
+distanceThreshold = config.getfloat('DEFAULT', 'distanceThreshold', fallback=0.2)
+# 脑袋俯仰角度检测参数：脸型上部和下部的宽度比
+angleThreshold = config.getfloat('DEFAULT', 'angleThreshold', fallback=1.1)
+# 当不展示画面时，多久检测一次
+interval =  config.getfloat('DEFAULT', 'interval', fallback=3)
+# 视频画面上文字大小
+textScale = config.getfloat('DEFAULT', 'textScale', fallback=0.8)
+# 距离过近音效文件
+distanceSound = config.get('DEFAULT', 'distanceSound', fallback="res/1.mp3")
+# 头过低音效文件
+angleSound = config.get('DEFAULT', 'angleSound', fallback="res/2.mp3")
+# 脸部左上点位序号
+faceTopLeft = config.getint('DEFAULT', 'faceTopLeft', fallback=0)
+# 脸部右上点位序号
+faceTopRight = config.getint('DEFAULT', 'faceTopRight', fallback=16)
+# 脸部中部左侧点位序号
+faceMiddleLeft = config.getint('DEFAULT', 'faceMiddleLeft', fallback=3)
+# 脸部中部右侧点位序号
+faceMiddleRight = config.getint('DEFAULT', 'faceMiddleRight', fallback=13)
 
+print(f"distance threshold: {distanceThreshold}\nangle threshold: {angleThreshold}\ninterval: {interval}")
+print(f"distance sound: {distanceSound}\nangle sound: {angleSound}")
 
 
 def playSoundAsync():
@@ -50,26 +73,14 @@ def playSound(file):
 
 # 太近
 def tooClose():
-    playSound("res/1.mp3")
+    playSound(distanceSound)
 
 # 低头
 def lowHead():
-    playSound("res/2.mp3")
+    playSound(angleSound)
 
 print("open camera... if failed, close this, and try again.")
 
-# 显示摄像头采集画面
-showGUI = config.getboolean('DEFAULT', 'showGUI', fallback=True)
-# 距离检测参数：脸部宽度占比
-distanceThreshold = config.getfloat('DEFAULT', 'distanceThreshold', fallback=0.2)
-# 脑袋俯仰角度检测参数：脸型上部和下部的宽度比
-headThreshold = config.getfloat('DEFAULT', 'headThreshold', fallback=1.1)
-# 当不展示画面时，多久检测一次
-interval =  config.getfloat('DEFAULT', 'interval', fallback=3)
-# 视频画面上文字大小
-textScale = config.getfloat('DEFAULT', 'textScale', fallback=0.8)
-
-print(f"distance threshold: {distanceThreshold}\nhead threshold: {headThreshold}")
 
 cap = cv2.VideoCapture(0)
 detector = dlib.get_frontal_face_detector()
@@ -100,13 +111,13 @@ while True:
     for face in faces:
         landmarks = predictor(gray, face)
         # 脸的上部分宽度
-        faceWitdhTop = landmarks.part(16).x - landmarks.part(0).x
+        faceWitdhTop = landmarks.part(faceTopRight).x - landmarks.part(faceTopLeft).x
         # 脸的中部分宽度
-        faceWitdhBottom = landmarks.part(13).x - landmarks.part(3).x
+        faceWitdhBottom = landmarks.part(faceMiddleRight).x - landmarks.part(faceMiddleLeft).x
         faceAngle = faceWitdhTop / faceWitdhBottom
         faceWidthPercent = faceWitdhTop / frame_width
 
-        if faceAngle > headThreshold:
+        if faceAngle > angleThreshold:
             lowHead()
         if faceWidthPercent > distanceThreshold:
             tooClose()
@@ -116,15 +127,22 @@ while True:
             for n in range(0, 68):
                 x = landmarks.part(n).x
                 y = landmarks.part(n).y
-                # 绘制人脸关键点，红色点
-                cv2.circle(frame, (x, y), 2, (0, 0, 255), -1)
+                # 绘制人脸关键点
+                if n in [faceTopLeft, faceTopRight, faceMiddleLeft, faceMiddleRight]:
+                    cv2.circle(frame, (x, y), 4, (0, 255, 255), -1)
+                else:
+                    cv2.circle(frame, (x, y), 2, (0, 0, 255), -1)
+                
                 # 打印每个点的序号
-                cv2.putText(frame, f"{n}", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
+                if n > 30:
+                    cv2.putText(frame, f"{n}", (x + 2, y + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1)
+                else:
+                    cv2.putText(frame, f"{n}", (x + 2, y + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
             # BGR格式
             colorGreen = (0, 255, 0)
             colorRed = (0, 0, 255)
             colorBlue = (255, 0, 255)
-            cv2.putText(frame, f"Angle current:{faceAngle:.3f} / threshold:{headThreshold:.3f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, textScale, colorGreen if faceAngle < headThreshold else colorRed, 1)
+            cv2.putText(frame, f"Angle current:{faceAngle:.3f} / threshold:{angleThreshold:.3f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, textScale, colorGreen if faceAngle < angleThreshold else colorRed, 1)
             cv2.putText(frame, f"Distance current:{faceWidthPercent:.3f} / threshold:{distanceThreshold:.3f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, textScale, colorGreen if faceWidthPercent < distanceThreshold else colorRed, 1)
 
             # 显示帮助
@@ -139,8 +157,8 @@ while True:
     # 以当前状态设置阈值
     # 角度
     if cv2.waitKey(1) & 0xFF == ord('a'):
-        headThreshold = faceAngle
-        print(f"head angle threshold: {headThreshold}")
+        angleThreshold = faceAngle
+        print(f"angle threshold: {angleThreshold}")
     # 距离
     if cv2.waitKey(2) & 0xFF == ord('d'):
         distanceThreshold = faceWidthPercent
