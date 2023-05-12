@@ -1,4 +1,4 @@
-default:
-    pyinstaller --onefile  --add-data "res:res" main.py
+default: 
+	@pyinstaller --onefile  --add-data "res:res" main.py
 
 .PHONY: default
