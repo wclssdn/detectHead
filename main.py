@@ -31,7 +31,7 @@ distanceThreshold = config.getfloat('DEFAULT', 'distanceThreshold', fallback=0.2
 # 脑袋俯仰角度检测参数：脸型上部和下部的宽度比
 angleThreshold = config.getfloat('DEFAULT', 'angleThreshold', fallback=1.1)
 # 当不展示画面时，多久检测一次
-interval =  config.getfloat('DEFAULT', 'interval', fallback=3)
+interval =  config.getfloat('DEFAULT', 'interval', fallback=10)
 # 视频画面上文字大小
 textScale = config.getfloat('DEFAULT', 'textScale', fallback=0.8)
 # 距离过近音效文件
@@ -81,7 +81,6 @@ def lowHead():
 
 print("open camera... if failed, close this, and try again.")
 
-
 cap = cv2.VideoCapture(0)
 detector = dlib.get_frontal_face_detector()
 predictor_path = os.path.join(os.path.dirname(__file__), "res/shape_predictor_68_face_landmarks.dat")
@@ -93,10 +92,16 @@ print("Press Ctrl + C to quit")
 while True:
     if not showGUI:
         time.sleep(interval)
+        # 当锁屏再解锁后，摄像头可能会被关闭，重新打开
+        cap = cv2.VideoCapture(0)
 
     ret, frame = cap.read()
     if not ret:
         continue
+
+    if not showGUI:
+        # 先释放摄像头
+        cap.release()
 
     # 将图像转换为灰度图像
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
